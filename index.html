@@ -3,42 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Transporte</title>
+    <title>Dashboard de Transporte - Conectado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-        body { background-color: #f8fafc; }
+        body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
         .animate-in { animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Loader simple */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #e11d48; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        // Importamos React y Lucide desde la nube (ESM)
-        import React, { useState, useMemo, useEffect, useRef } from 'https://esm.sh/react@18.2.0?dev';
+        import React, { useState, useMemo, useEffect } from 'https://esm.sh/react@18.2.0?dev';
         import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client?dev';
         import { 
-            BarChart, Activity, AlertTriangle, CheckCircle, Calendar, Filter, PieChart, 
-            Info, MapPin, Truck, UserX, PenTool, MessageSquare, ThumbsDown, Megaphone, Users, TrendingUp,
-            Plus, X, Save, RotateCcw, Edit3, ChevronDown, Check, Clock, Trash2, History, Download, Upload, XCircle,
-            Percent, AlertOctagon, Gauge, ArrowUpRight, ArrowDownRight, Minus, LineChart, CloudRain, TrafficCone, HelpCircle
+            Activity, AlertTriangle, Calendar, Filter, PieChart, Truck, MessageSquare, 
+            TrendingUp, Plus, X, RotateCcw, Edit3, Trash2, History, Clock, AlertOctagon,
+            CheckCircle, XCircle, BarChart2, Save, CloudUpload
         } from 'https://esm.sh/lucide-react@0.292.0';
 
-        // --- UTILIDADES DE FECHA ---
+        // --- FIREBASE IMPORTS ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+        import { 
+            getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, writeBatch 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // --- CONFIGURACIÓN FIREBASE (Tus Credenciales) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5OvYG9qGFrwQGCIIk2ps6R7tBDrhHqrY",
+            authDomain: "kpis-stellantis.firebaseapp.com",
+            projectId: "kpis-stellantis",
+            storageBucket: "kpis-stellantis.firebasestorage.app",
+            messagingSenderId: "618714680596",
+            appId: "1:618714680596:web:8b7d14cb1dd4e6a9dd0601",
+            measurementId: "G-WDXSRLJ6VB"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+
+        // --- DATOS DEMO (Solo para carga inicial) ---
+        const DEMO_INCIDENTS = [
+            { date: '08/12/25', plant: 'Camiones', shift: 'T1', imp: 0, noImp: 13, lateStarts: 1, serviceLevel: 98.5, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 10, causeNoImpWeather: 0, causeNoImpOther: 3 },
+            { date: '09/12/25', plant: 'Camiones', shift: 'T1', imp: 0, noImp: 3, lateStarts: 0, serviceLevel: 99.2, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 3, causeNoImpWeather: 0, causeNoImpOther: 0 },
+            { date: '09/12/25', plant: 'Camiones', shift: 'T2', imp: 0, noImp: 2, lateStarts: 2, serviceLevel: 97.8, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 2, causeNoImpWeather: 0, causeNoImpOther: 0 },
+            { date: '10/12/25', plant: 'Camiones', shift: 'T1', imp: 0, noImp: 3, lateStarts: 0, serviceLevel: 99.5, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 1, causeNoImpWeather: 2, causeNoImpOther: 0 },
+            { date: '10/12/25', plant: 'Camiones', shift: 'T2', imp: 0, noImp: 1, lateStarts: 0, serviceLevel: 99.0, accidents: 1, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 1, causeNoImpWeather: 0, causeNoImpOther: 0 },
+            { date: '11/12/25', plant: 'Camiones', shift: 'T1', imp: 2, noImp: 0, lateStarts: 1, serviceLevel: 96.5, accidents: 0, causeImpOperator: 2, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 0, causeNoImpWeather: 0, causeNoImpOther: 0 },
+            { date: '11/12/25', plant: 'Camiones', shift: 'T2', imp: 0, noImp: 4, lateStarts: 3, serviceLevel: 95.0, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 4, causeNoImpWeather: 0, causeNoImpOther: 0 },
+            { date: '13/12/25', plant: 'Camiones', shift: 'T2', imp: 0, noImp: 13, lateStarts: 0, serviceLevel: 98.0, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 10, causeNoImpWeather: 0, causeNoImpOther: 3 },
+            { date: '08/12/25', plant: 'Extensión', shift: 'T1', imp: 0, noImp: 7, lateStarts: 0, serviceLevel: 99.0, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 5, causeNoImpWeather: 2, causeNoImpOther: 0 },
+            { date: '08/12/25', plant: 'Extensión', shift: 'T2', imp: 6, noImp: 0, lateStarts: 1, serviceLevel: 92.5, accidents: 1, causeImpOperator: 4, causeImpAccident: 1, causeImpLogistics: 1, causeNoImpTraffic: 0, causeNoImpWeather: 0, causeNoImpOther: 0 },
+            { date: '09/12/25', plant: 'Extensión', shift: 'T1', imp: 0, noImp: 9, lateStarts: 0, serviceLevel: 98.8, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 8, causeNoImpWeather: 0, causeNoImpOther: 1 },
+            { date: '09/12/25', plant: 'Extensión', shift: 'T2', imp: 7, noImp: 3, lateStarts: 2, serviceLevel: 91.0, accidents: 0, causeImpOperator: 5, causeImpAccident: 2, causeImpLogistics: 0, causeNoImpTraffic: 3, causeNoImpWeather: 0, causeNoImpOther: 0 },
+            { date: '08/12/25', plant: 'Van', shift: 'T2', imp: 0, noImp: 1, lateStarts: 0, serviceLevel: 100, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 0, causeNoImpWeather: 0, causeNoImpOther: 1 },
+            { date: '08/12/25', plant: 'Norte', shift: 'T2', imp: 1, noImp: 7, lateStarts: 0, serviceLevel: 98.0, accidents: 0, causeImpOperator: 1, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 6, causeNoImpWeather: 0, causeNoImpOther: 1 },
+        ];
+        const DEMO_COMPLAINTS = [
+            { date: '09/12/25', plant: 'Norte', route: 'Valle Verde', issue: 'Actitud', detail: 'Operador no enciende luces interiores', action: 'Compromiso con operador', source: 'Laborales', type: 'Conducta' },
+            { date: '09/12/25', plant: 'Norte', route: 'Analco', issue: 'Actitud', detail: 'Operador no enciende luces interiores', action: 'Compromiso con operador', source: 'Laborales', type: 'Conducta' },
+            { date: '10/12/25', plant: 'Camiones', route: 'Valle Escondido', issue: 'Desvío de ruta', detail: 'Reporte por desviación de ruta', action: 'Retroalimentación al operador', source: 'Sindicato', type: 'Servicio' },
+            { date: '10/12/25', plant: 'Norte', route: 'Parques de la cañada', issue: 'Inicios tardes', detail: 'Inicios tardes constantes', action: 'Compromiso departamentos', source: 'Laborales', type: 'Servicio' },
+            { date: '10/12/25', plant: 'Norte', route: 'Santa Elena', issue: 'Falla mecánica', detail: 'Falla al frenar, mucho ruido', action: 'Programada a mantenimiento', source: 'Laborales', type: 'Unidad' },
+        ];
+
+        const PLANTS = ['Todas', 'Camiones', 'Extensión', 'Van', 'Norte', 'Sur'];
+
+        // --- UTILIDADES ---
         const generateCalendarData = () => {
             const dates = [];
             const weeks = {};
             let currentDate = new Date(2025, 11, 1);
             const endDate = new Date(2026, 11, 31);
-            let currentWeekKey = '';
             let weekCounter = 49;
             let yearForWeek = 2025;
-            let prevWeekKey = null;
             let dayCount = 0;
+            let currentWeekKey = '';
 
             const formatDate = (d) => {
                 const day = d.getDate().toString().padStart(2, '0');
@@ -54,29 +104,19 @@
                     const wNum = weekCounter.toString().padStart(2, '0');
                     const wYear = yearForWeek.toString().slice(-2);
                     const key = `S${wNum}-${wYear}`;
-                    const endOfWeekDate = new Date(currentDate);
-                    endOfWeekDate.setDate(endOfWeekDate.getDate() + 6);
-                    const label = `Semana ${wNum} '${wYear} (${dateStr.slice(0,5)} - ${formatDate(endOfWeekDate).slice(0,5)})`;
-
+                    const endOfWeek = new Date(currentDate);
+                    endOfWeek.setDate(endOfWeek.getDate() + 6);
                     weeks[key] = {
                         id: key,
-                        label: label,
+                        label: `Semana ${wNum} '${wYear} (${dateStr.slice(0,5)} - ${formatDate(endOfWeek).slice(0,5)})`,
                         dates: [],
-                        prev: prevWeekKey,
-                        year: yearForWeek,
-                        weekNum: weekCounter
+                        year: yearForWeek
                     };
                     currentWeekKey = key;
-                    prevWeekKey = key;
                     weekCounter++;
-                    if (weekCounter > 52) {
-                        weekCounter = 1;
-                        yearForWeek++;
-                    }
+                    if (weekCounter > 52) { weekCounter = 1; yearForWeek++; }
                 }
-                if (weeks[currentWeekKey]) {
-                    weeks[currentWeekKey].dates.push(dateStr);
-                }
+                if (weeks[currentWeekKey]) weeks[currentWeekKey].dates.push(dateStr);
                 dayCount++;
                 currentDate.setDate(currentDate.getDate() + 1);
             }
@@ -85,342 +125,128 @@
 
         const { allDates: ALL_DATES, weeksDef: WEEKS_DEF } = generateCalendarData();
 
-        // --- DATOS INICIALES ---
-        const INITIAL_INCIDENTS = [
-            { id: 1, date: '08/12/25', plant: 'Camiones', shift: 'T1', imp: 0, noImp: 13, lateStarts: 1, serviceLevel: 98.5, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 10, causeNoImpWeather: 0, causeNoImpOther: 3 },
-            { id: 2, date: '09/12/25', plant: 'Camiones', shift: 'T1', imp: 0, noImp: 3, lateStarts: 0, serviceLevel: 99.2, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 3, causeNoImpWeather: 0, causeNoImpOther: 0 },
-            { id: 3, date: '09/12/25', plant: 'Camiones', shift: 'T2', imp: 0, noImp: 2, lateStarts: 2, serviceLevel: 97.8, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 2, causeNoImpWeather: 0, causeNoImpOther: 0 },
-            { id: 4, date: '10/12/25', plant: 'Camiones', shift: 'T1', imp: 0, noImp: 3, lateStarts: 0, serviceLevel: 99.5, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 1, causeNoImpWeather: 2, causeNoImpOther: 0 },
-            { id: 5, date: '10/12/25', plant: 'Camiones', shift: 'T2', imp: 0, noImp: 1, lateStarts: 0, serviceLevel: 99.0, accidents: 1, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 1, causeNoImpWeather: 0, causeNoImpOther: 0 },
-            { id: 6, date: '11/12/25', plant: 'Camiones', shift: 'T1', imp: 2, noImp: 0, lateStarts: 1, serviceLevel: 96.5, accidents: 0, causeImpOperator: 2, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 0, causeNoImpWeather: 0, causeNoImpOther: 0 },
-            { id: 7, date: '11/12/25', plant: 'Camiones', shift: 'T2', imp: 0, noImp: 4, lateStarts: 3, serviceLevel: 95.0, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 4, causeNoImpWeather: 0, causeNoImpOther: 0 },
-            { id: 8, date: '13/12/25', plant: 'Camiones', shift: 'T2', imp: 0, noImp: 13, lateStarts: 0, serviceLevel: 98.0, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 10, causeNoImpWeather: 0, causeNoImpOther: 3 },
-            { id: 9, date: '08/12/25', plant: 'Extensión', shift: 'T1', imp: 0, noImp: 7, lateStarts: 0, serviceLevel: 99.0, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 5, causeNoImpWeather: 2, causeNoImpOther: 0 },
-            { id: 10, date: '08/12/25', plant: 'Extensión', shift: 'T2', imp: 6, noImp: 0, lateStarts: 1, serviceLevel: 92.5, accidents: 1, causeImpOperator: 4, causeImpAccident: 1, causeImpLogistics: 1, causeNoImpTraffic: 0, causeNoImpWeather: 0, causeNoImpOther: 0 },
-            { id: 11, date: '09/12/25', plant: 'Extensión', shift: 'T1', imp: 0, noImp: 9, lateStarts: 0, serviceLevel: 98.8, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 8, causeNoImpWeather: 0, causeNoImpOther: 1 },
-            { id: 12, date: '09/12/25', plant: 'Extensión', shift: 'T2', imp: 7, noImp: 3, lateStarts: 2, serviceLevel: 91.0, accidents: 0, causeImpOperator: 5, causeImpAccident: 2, causeImpLogistics: 0, causeNoImpTraffic: 3, causeNoImpWeather: 0, causeNoImpOther: 0 },
-            { id: 17, date: '08/12/25', plant: 'Van', shift: 'T2', imp: 0, noImp: 1, lateStarts: 0, serviceLevel: 100, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 0, causeNoImpWeather: 0, causeNoImpOther: 1 },
-            { id: 26, date: '08/12/25', plant: 'Norte', shift: 'T2', imp: 1, noImp: 7, lateStarts: 0, serviceLevel: 98.0, accidents: 0, causeImpOperator: 1, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 6, causeNoImpWeather: 0, causeNoImpOther: 1 },
-        ];
-
-        const INITIAL_COMPLAINTS = [
-            { id: 1, date: '09/12/25', plant: 'Norte', route: 'Valle Verde', issue: 'Actitud', detail: 'Operador no enciende luces interiores', action: 'Compromiso con operador', source: 'Laborales', type: 'Conducta' },
-            { id: 2, date: '09/12/25', plant: 'Norte', route: 'Analco', issue: 'Actitud', detail: 'Operador no enciende luces interiores', action: 'Compromiso con operador', source: 'Laborales', type: 'Conducta' },
-            { id: 3, date: '10/12/25', plant: 'Camiones', route: 'Valle Escondido', issue: 'Desvío de ruta', detail: 'Reporte por desviación de ruta', action: 'Retroalimentación al operador', source: 'Sindicato', type: 'Servicio' },
-            { id: 4, date: '10/12/25', plant: 'Norte', route: 'Parques de la cañada', issue: 'Inicios tardes', detail: 'Inicios tardes constantes', action: 'Compromiso departamentos', source: 'Laborales', type: 'Servicio' },
-            { id: 5, date: '10/12/25', plant: 'Norte', route: 'Santa Elena', issue: 'Falla mecánica', detail: 'Falla al frenar, mucho ruido', action: 'Programada a mantenimiento', source: 'Laborales', type: 'Unidad' },
-        ];
-
-        const PLANTS = ['Todas', 'Camiones', 'Extensión', 'Van', 'Norte', 'Sur'];
-
-        // --- COMPONENTES AUXILIARES ---
-
-        const ToastNotification = ({ message, type, onClose }) => {
-            if (!message) return null;
-            const isSuccess = type === 'success';
-            return (
-                <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border animate-in slide-in-from-top-2 fade-in duration-300 ${isSuccess ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
-                    {isSuccess ? <CheckCircle className="w-5 h-5 text-emerald-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
-                    <span className="text-sm font-medium">{message}</span>
-                    <button onClick={onClose} className="p-1 hover:bg-black/5 rounded-full transition-colors ml-2">
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-            );
-        };
-
-        const DataManagementModal = ({ 
-            isOpen, onClose, onAddIncident, onAddComplaint, onReset, 
-            incidents, complaints, onDeleteIncident, onDeleteComplaint,
-            onShowNotification
-        }) => {
-            const [activeTab, setActiveTab] = useState('incidents');
-            const [historyType, setHistoryType] = useState('incidents');
+        // --- COMPONENTES GRÁFICOS ---
+        const SimpleDonutChart = ({ data, total, title }) => {
+            if (total === 0) return <div className="h-40 flex items-center justify-center text-slate-300 text-xs">Sin datos</div>;
             
-            const [newIncident, setNewIncident] = useState({
-                date: '15/12/25', plant: 'Camiones', shift: 'T1',
-                causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0,
-                causeNoImpTraffic: 0, causeNoImpWeather: 0, causeNoImpOther: 0,
-                lateStarts: 0, serviceLevel: 100, accidents: 0
+            let accumulatedPercent = 0;
+            const size = 100;
+            const radius = 40;
+            const center = 50;
+            
+            const segments = data.map((item, index) => {
+                const percent = item.val / total;
+                const startAngle = accumulatedPercent * 360;
+                const endAngle = (accumulatedPercent + percent) * 360;
+                accumulatedPercent += percent;
+                const x1 = center + radius * Math.cos(Math.PI * startAngle / 180);
+                const y1 = center + radius * Math.sin(Math.PI * startAngle / 180);
+                const x2 = center + radius * Math.cos(Math.PI * endAngle / 180);
+                const y2 = center + radius * Math.sin(Math.PI * endAngle / 180);
+                const largeArc = percent > 0.5 ? 1 : 0;
+                const d = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+                return { d, color: item.color, label: item.label, val: item.val, percent: (percent*100).toFixed(0) };
             });
-
-            const [newComplaint, setNewComplaint] = useState({
-                date: '15/12/25', plant: 'Camiones', route: '', issue: 'Actitud',
-                detail: '', action: '', source: 'Sindicato', type: 'Conducta'
-            });
-
-            const totalImp = (parseInt(newIncident.causeImpOperator) || 0) + (parseInt(newIncident.causeImpAccident) || 0) + (parseInt(newIncident.causeImpLogistics) || 0);
-            const totalNoImp = (parseInt(newIncident.causeNoImpTraffic) || 0) + (parseInt(newIncident.causeNoImpWeather) || 0) + (parseInt(newIncident.causeNoImpOther) || 0);
-
-            if (!isOpen) return null;
-
-            const handleSubmitIncident = (e) => {
-                e.preventDefault();
-                onAddIncident({
-                    ...newIncident,
-                    id: Date.now(),
-                    imp: totalImp,
-                    noImp: totalNoImp,
-                    causeImpOperator: parseInt(newIncident.causeImpOperator) || 0,
-                    causeImpAccident: parseInt(newIncident.causeImpAccident) || 0,
-                    causeImpLogistics: parseInt(newIncident.causeImpLogistics) || 0,
-                    causeNoImpTraffic: parseInt(newIncident.causeNoImpTraffic) || 0,
-                    causeNoImpWeather: parseInt(newIncident.causeNoImpWeather) || 0,
-                    causeNoImpOther: parseInt(newIncident.causeNoImpOther) || 0,
-                    lateStarts: parseInt(newIncident.lateStarts),
-                    serviceLevel: parseFloat(newIncident.serviceLevel),
-                    accidents: parseInt(newIncident.accidents)
-                });
-                onShowNotification('success', 'Datos operativos agregados correctamente');
-            };
-
-            const handleSubmitComplaint = (e) => {
-                e.preventDefault();
-                onAddComplaint({ ...newComplaint, id: Date.now() });
-                setNewComplaint({ ...newComplaint, detail: '', action: '', route: '' });
-                onShowNotification('success', 'Queja agregada correctamente');
-            };
 
             return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
-                            <h2 className="text-lg font-bold flex items-center gap-2">
-                                <Edit3 className="w-5 h-5" /> Gestión de Datos
-                            </h2>
-                            <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded-full transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
+                <div className="flex flex-col items-center">
+                    <h4 className="text-xs font-bold text-slate-500 mb-2 uppercase">{title}</h4>
+                    <div className="relative w-32 h-32">
+                        <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
+                            {segments.map((seg, i) => <path key={i} d={seg.d} fill={seg.color} stroke="white" strokeWidth="1" />)}
+                            <circle cx="50" cy="50" r="25" fill="white" />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center flex-col">
+                            <span className="text-xl font-bold text-slate-700">{total}</span>
                         </div>
-
-                        <div className="flex border-b border-slate-200 bg-slate-50">
-                            <button className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'incidents' ? 'text-rose-600 border-b-2 border-rose-500 bg-white' : 'text-slate-500 hover:bg-slate-100'}`} onClick={() => setActiveTab('incidents')}>Datos Operativos</button>
-                            <button className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'complaints' ? 'text-purple-600 border-b-2 border-purple-500 bg-white' : 'text-slate-500 hover:bg-slate-100'}`} onClick={() => setActiveTab('complaints')}>Agregar Queja</button>
-                            <button className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${activeTab === 'history' ? 'text-blue-600 border-b-2 border-blue-500 bg-white' : 'text-slate-500 hover:bg-slate-100'}`} onClick={() => setActiveTab('history')}><History className="w-4 h-4" /> Historial</button>
-                            <button className={`px-4 py-3 text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 border-l border-slate-200 transition-colors flex items-center gap-2`} onClick={() => { onReset(); onClose(); }}><RotateCcw className="w-4 h-4" /> Reset</button>
-                        </div>
-
-                        <div className="p-6 overflow-y-auto">
-                            {activeTab === 'incidents' && (
-                                <form onSubmit={handleSubmitIncident} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Fecha</label>
-                                            <select className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white" value={newIncident.date} onChange={e => setNewIncident({...newIncident, date: e.target.value})}>
-                                                {ALL_DATES.map(d => <option key={d} value={d}>{d}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Planta</label>
-                                            <select className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white" value={newIncident.plant} onChange={e => setNewIncident({...newIncident, plant: e.target.value})}>
-                                                {PLANTS.filter(p => p !== 'Todas').map(p => <option key={p} value={p}>{p}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Turno</label>
-                                        <div className="flex gap-4">
-                                            {['T1', 'T2', 'T3'].map(shift => (
-                                                <label key={shift} className="flex items-center gap-2 text-sm cursor-pointer">
-                                                    <input type="radio" name="shift" value={shift} checked={newIncident.shift === shift} onChange={e => setNewIncident({...newIncident, shift: e.target.value})} className="text-rose-500 focus:ring-rose-500" />
-                                                    {shift}
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center border-b border-slate-200 pb-1">
-                                                <label className="text-xs font-bold text-rose-600 uppercase">Imputables</label>
-                                                <span className="text-xs font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">Total: {totalImp}</span>
-                                            </div>
-                                            <div className="grid grid-cols-1 gap-2">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-xs text-slate-600">Falla Operador:</span>
-                                                    <input type="number" min="0" className="w-16 border border-slate-300 rounded p-1 text-sm text-center" value={newIncident.causeImpOperator} onChange={e => setNewIncident({...newIncident, causeImpOperator: e.target.value})} />
-                                                </div>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-xs text-slate-600">Siniestro:</span>
-                                                    <input type="number" min="0" className="w-16 border border-slate-300 rounded p-1 text-sm text-center" value={newIncident.causeImpAccident} onChange={e => setNewIncident({...newIncident, causeImpAccident: e.target.value})} />
-                                                </div>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-xs text-slate-600">Logística:</span>
-                                                    <input type="number" min="0" className="w-16 border border-slate-300 rounded p-1 text-sm text-center" value={newIncident.causeImpLogistics} onChange={e => setNewIncident({...newIncident, causeImpLogistics: e.target.value})} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center border-b border-slate-200 pb-1">
-                                                <label className="text-xs font-bold text-slate-500 uppercase">No Imputables</label>
-                                                <span className="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">Total: {totalNoImp}</span>
-                                            </div>
-                                            <div className="grid grid-cols-1 gap-2">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-xs text-slate-600">Tráfico:</span>
-                                                    <input type="number" min="0" className="w-16 border border-slate-300 rounded p-1 text-sm text-center" value={newIncident.causeNoImpTraffic} onChange={e => setNewIncident({...newIncident, causeNoImpTraffic: e.target.value})} />
-                                                </div>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-xs text-slate-600">Clima:</span>
-                                                    <input type="number" min="0" className="w-16 border border-slate-300 rounded p-1 text-sm text-center" value={newIncident.causeNoImpWeather} onChange={e => setNewIncident({...newIncident, causeNoImpWeather: e.target.value})} />
-                                                </div>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-xs text-slate-600">Otros:</span>
-                                                    <input type="number" min="0" className="w-16 border border-slate-300 rounded p-1 text-sm text-center" value={newIncident.causeNoImpOther} onChange={e => setNewIncident({...newIncident, causeNoImpOther: e.target.value})} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                                            <label className="block text-xs font-bold text-amber-700 mb-1 flex items-center gap-1"><Clock className="w-3 h-3" /> Inicios Tardes</label>
-                                            <input type="number" min="0" className="w-full border border-amber-300 rounded-md p-2 text-sm bg-white" value={newIncident.lateStarts} onChange={e => setNewIncident({...newIncident, lateStarts: e.target.value})} />
-                                        </div>
-                                        <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
-                                            <label className="block text-xs font-bold text-emerald-700 mb-1 flex items-center gap-1"><Percent className="w-3 h-3" /> Nivel Servicio %</label>
-                                            <input type="number" min="0" max="100" step="0.1" className="w-full border border-emerald-300 rounded-md p-2 text-sm bg-white" value={newIncident.serviceLevel} onChange={e => setNewIncident({...newIncident, serviceLevel: e.target.value})} />
-                                        </div>
-                                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                                            <label className="block text-xs font-bold text-orange-700 mb-1 flex items-center gap-1"><AlertOctagon className="w-3 h-3" /> Percances</label>
-                                            <input type="number" min="0" className="w-full border border-orange-300 rounded-md p-2 text-sm bg-white" value={newIncident.accidents} onChange={e => setNewIncident({...newIncident, accidents: e.target.value})} />
-                                        </div>
-                                    </div>
-                                    <button type="submit" className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                                        <Plus className="w-4 h-4" /> Agregar Datos Diarios
-                                    </button>
-                                </form>
-                            )}
-
-                            {activeTab === 'complaints' && (
-                                <form onSubmit={handleSubmitComplaint} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Fecha</label>
-                                            <select className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white" value={newComplaint.date} onChange={e => setNewComplaint({...newComplaint, date: e.target.value})}>
-                                                {ALL_DATES.map(d => <option key={d} value={d}>{d}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Planta</label>
-                                            <select className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white" value={newComplaint.plant} onChange={e => setNewComplaint({...newComplaint, plant: e.target.value})}>
-                                                {PLANTS.filter(p => p !== 'Todas').map(p => <option key={p} value={p}>{p}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Ruta</label>
-                                            <input type="text" placeholder="Ej. Valle Verde" className="w-full border border-slate-300 rounded-md p-2 text-sm" value={newComplaint.route} onChange={e => setNewComplaint({...newComplaint, route: e.target.value})} required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Tipo Problema</label>
-                                            <select className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white" value={newComplaint.type} onChange={e => setNewComplaint({...newComplaint, type: e.target.value})}>
-                                                <option value="Conducta">Conducta</option>
-                                                <option value="Servicio">Servicio</option>
-                                                <option value="Unidad">Unidad</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Motivo Corto</label>
-                                        <input type="text" placeholder="Ej. Mala conducción" className="w-full border border-slate-300 rounded-md p-2 text-sm" value={newComplaint.issue} onChange={e => setNewComplaint({...newComplaint, issue: e.target.value})} required />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Detalle</label>
-                                        <textarea rows="2" placeholder="Descripción detallada..." className="w-full border border-slate-300 rounded-md p-2 text-sm" value={newComplaint.detail} onChange={e => setNewComplaint({...newComplaint, detail: e.target.value})} required />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-emerald-600 mb-1">Acción Correctiva</label>
-                                        <input type="text" placeholder="Ej. Retroalimentación al operador" className="w-full border border-slate-300 rounded-md p-2 text-sm" value={newComplaint.action} onChange={e => setNewComplaint({...newComplaint, action: e.target.value})} required />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Origen</label>
-                                        <div className="flex gap-4">
-                                            <label className="flex items-center gap-2 text-sm"><input type="radio" name="source" value="Sindicato" checked={newComplaint.source === 'Sindicato'} onChange={e => setNewComplaint({...newComplaint, source: e.target.value})} /> Sindicato</label>
-                                            <label className="flex items-center gap-2 text-sm"><input type="radio" name="source" value="Laborales" checked={newComplaint.source === 'Laborales'} onChange={e => setNewComplaint({...newComplaint, source: e.target.value})} /> Laborales</label>
-                                        </div>
-                                    </div>
-                                    <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                                        <Plus className="w-4 h-4" /> Agregar Queja
-                                    </button>
-                                </form>
-                            )}
-
-                            {activeTab === 'history' && (
-                                <div className="space-y-4">
-                                    <div className="flex justify-center p-1 bg-slate-100 rounded-lg">
-                                        <button onClick={() => setHistoryType('incidents')} className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${historyType === 'incidents' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Datos Operativos</button>
-                                        <button onClick={() => setHistoryType('complaints')} className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${historyType === 'complaints' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Quejas</button>
-                                    </div>
-                                    <div className="overflow-y-auto max-h-[400px] border border-slate-200 rounded-lg">
-                                        <table className="w-full text-xs text-left">
-                                            <thead className="bg-slate-50 sticky top-0">
-                                                <tr>
-                                                    <th className="p-2 border-b">Fecha</th>
-                                                    <th className="p-2 border-b">Planta</th>
-                                                    <th className="p-2 border-b">{historyType === 'incidents' ? 'Detalle (Imp/Serv%/Perc)' : 'Detalle (Motivo)'}</th>
-                                                    <th className="p-2 border-b text-right">Acción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {historyType === 'incidents' ? (
-                                                    incidents.slice().reverse().map(item => (
-                                                        <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
-                                                            <td className="p-2 font-medium">{item.date}</td>
-                                                            <td className="p-2 text-slate-600">{item.plant} ({item.shift})</td>
-                                                            <td className="p-2">
-                                                                <span className="text-rose-600 font-bold" title="Imputables">{item.imp}</span> / 
-                                                                <span className="text-emerald-600 font-bold" title="Nivel Servicio"> {item.serviceLevel}%</span> /
-                                                                <span className="text-orange-600 font-bold" title="Percances"> {item.accidents || 0}</span>
-                                                            </td>
-                                                            <td className="p-2 text-right">
-                                                                <button onClick={() => onDeleteIncident(item.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                ) : (
-                                                    complaints.slice().reverse().map(item => (
-                                                        <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
-                                                            <td className="p-2 font-medium">{item.date}</td>
-                                                            <td className="p-2 text-slate-600">{item.plant}</td>
-                                                            <td className="p-2 text-slate-600 max-w-[150px] truncate" title={item.detail}>
-                                                                <span className="font-semibold block text-slate-800">{item.issue}</span>
-                                                                {item.route}
-                                                            </td>
-                                                            <td className="p-2 text-right">
-                                                                <button onClick={() => onDeleteComplaint(item.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                    </div>
+                    <div className="w-full mt-4 space-y-1">
+                        {segments.map((seg, i) => seg.val > 0 && (
+                            <div key={i} className="flex justify-between text-xs items-center">
+                                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{backgroundColor: seg.color}}></span><span className="text-slate-600">{seg.label}</span></div>
+                                <span className="font-bold text-slate-800">{seg.val} ({seg.percent}%)</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
             );
         };
 
-        // --- COMPONENTE PRINCIPAL DEL DASHBOARD ---
+        const SimpleBarChart = ({ data, dataKeys, colors, height = 150, unit = '', minMax = 0 }) => {
+            const allValues = data.flatMap(d => dataKeys.map(k => d[k]));
+            let maxValue = Math.max(...allValues, minMax);
+            if (maxValue === 0) maxValue = 1;
 
+            return (
+                <div className="w-full flex items-end justify-between gap-2" style={{ height: `${height}px` }}>
+                    {data.map((item, idx) => (
+                        <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group">
+                            <div className="w-full relative flex items-end justify-center gap-1 h-full bg-slate-50 rounded-t-lg hover:bg-slate-100 transition-colors pt-6">
+                                {dataKeys.map((key, kIdx) => {
+                                    const val = item[key] || 0;
+                                    const barHeight = (val / maxValue) * 100;
+                                    const finalHeight = val > 0 && barHeight < 5 ? 5 : barHeight;
+                                    
+                                    return (
+                                        <div key={key} 
+                                             className={`w-full max-w-[20px] rounded-t ${colors[kIdx]} transition-all duration-500 relative`}
+                                             style={{ height: `${finalHeight}%` }}>
+                                             {/* ETIQUETA DE DATO AJUSTADA ARRIBA DE LA BARRA */}
+                                            {val > 0 && (
+                                                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-600 bg-white/80 px-1 rounded shadow-sm">
+                                                    {val}{unit}
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-2 text-center">
+                                <span className="text-xs font-bold text-slate-600 block">{item.dayName}</span>
+                                <span className="text-[10px] text-slate-400 block">{item.date.slice(0,5)}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- DASHBOARD PRINCIPAL ---
         const TransportationDashboard = () => {
-            const [incidents, setIncidents] = useState(INITIAL_INCIDENTS);
-            const [complaints, setComplaints] = useState(INITIAL_COMPLAINTS);
-            
-            const [selectedWeek, setSelectedWeek] = useState(() => {
-                const weekKeys = Object.keys(WEEKS_DEF);
-                return weekKeys.find(k => k === 'S49-25') || weekKeys[0]; 
-            });
+            // Estado
+            const [incidents, setIncidents] = useState([]);
+            const [complaints, setComplaints] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            const [selectedWeek, setSelectedWeek] = useState('S49-25');
             const [selectedPlant, setSelectedPlant] = useState('Todas');
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [notification, setNotification] = useState(null);
 
-            const dashboardData = useMemo(() => {
-                const weekData = WEEKS_DEF[selectedWeek];
-                if (!weekData) return null;
+            // --- CONEXIÓN A FIRESTORE ---
+            useEffect(() => {
+                // Escuchar Incidentes
+                const unsubIncidents = onSnapshot(collection(db, "incidents"), (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setIncidents(data);
+                    setIsLoading(false);
+                });
 
+                // Escuchar Quejas
+                const unsubComplaints = onSnapshot(collection(db, "complaints"), (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setComplaints(data);
+                });
+
+                return () => {
+                    unsubIncidents();
+                    unsubComplaints();
+                };
+            }, []);
+
+            // Cálculos del Dashboard
+            const dashboardData = useMemo(() => {
+                const weekData = WEEKS_DEF[selectedWeek] || Object.values(WEEKS_DEF)[0];
+                
                 const filteredIncidents = incidents.filter(inc => {
                     const matchDate = weekData.dates.includes(inc.date);
                     const matchPlant = selectedPlant === 'Todas' || inc.plant === selectedPlant;
@@ -433,8 +259,6 @@
                     return matchDate && matchPlant;
                 });
 
-                const totalIncidentsCount = filteredIncidents.length;
-                
                 const aggregates = filteredIncidents.reduce((acc, curr) => {
                     return {
                         imp: acc.imp + curr.imp,
@@ -449,24 +273,38 @@
                         c_noimp_weath: acc.c_noimp_weath + (curr.causeNoImpWeather || 0),
                         c_noimp_other: acc.c_noimp_other + (curr.causeNoImpOther || 0),
                     };
-                }, { 
-                    imp: 0, noImp: 0, lateStarts: 0, accidents: 0, serviceLevelSum: 0,
-                    c_imp_op: 0, c_imp_acc: 0, c_imp_log: 0, c_noimp_traf: 0, c_noimp_weath: 0, c_noimp_other: 0
-                });
+                }, { imp: 0, noImp: 0, lateStarts: 0, accidents: 0, serviceLevelSum: 0, c_imp_op: 0, c_imp_acc: 0, c_imp_log: 0, c_noimp_traf: 0, c_noimp_weath: 0, c_noimp_other: 0 });
 
+                const totalIncidentsCount = filteredIncidents.length;
                 const avgServiceLevel = totalIncidentsCount > 0 
                     ? (aggregates.serviceLevelSum / totalIncidentsCount).toFixed(1) 
                     : 100;
 
                 const dailyStats = weekData.dates.map(date => {
                     const dayIncidents = filteredIncidents.filter(i => i.date === date);
-                    const dayImp = dayIncidents.reduce((s, i) => s + i.imp, 0);
-                    const dayNoImp = dayIncidents.reduce((s, i) => s + i.noImp, 0);
                     const [d, m, y] = date.split('/');
                     const dateObj = new Date(`20${y}-${m}-${d}`);
-                    const dayName = dateObj.toLocaleDateString('es-ES', { weekday: 'short' });
+                    const dayName = dateObj.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase();
+                    
+                    const dayImp = dayIncidents.reduce((s, i) => s + i.imp, 0);
+                    const dayNoImp = dayIncidents.reduce((s, i) => s + i.noImp, 0);
+                    const dayLate = dayIncidents.reduce((s, i) => s + i.lateStarts, 0);
+                    const dayAcc = dayIncidents.reduce((s, i) => s + (i.accidents || 0), 0);
+                    
+                    let daySL = 100;
+                    if (dayIncidents.length > 0) {
+                        daySL = dayIncidents.reduce((s, i) => s + i.serviceLevel, 0) / dayIncidents.length;
+                    }
 
-                    return { date, dayName, imp: dayImp, noImp: dayNoImp, total: dayImp + dayNoImp };
+                    return { 
+                        date, 
+                        dayName: dayName.replace('.', ''), 
+                        imp: dayImp, 
+                        noImp: dayNoImp, 
+                        lateStarts: dayLate, 
+                        accidents: dayAcc,
+                        serviceLevel: parseFloat(daySL.toFixed(1))
+                    };
                 });
 
                 return {
@@ -478,14 +316,14 @@
                         serviceLevel: avgServiceLevel,
                         causes: {
                             imp: [
-                                { label: 'Operador', val: aggregates.c_imp_op, color: 'bg-rose-500' },
-                                { label: 'Siniestro', val: aggregates.c_imp_acc, color: 'bg-rose-400' },
-                                { label: 'Logística', val: aggregates.c_imp_log, color: 'bg-rose-300' },
+                                { label: 'Operador', val: aggregates.c_imp_op, color: '#f43f5e' },
+                                { label: 'Siniestro', val: aggregates.c_imp_acc, color: '#fb7185' },
+                                { label: 'Logística', val: aggregates.c_imp_log, color: '#fda4af' },
                             ],
                             noImp: [
-                                { label: 'Tráfico', val: aggregates.c_noimp_traf, color: 'bg-slate-500' },
-                                { label: 'Clima', val: aggregates.c_noimp_weath, color: 'bg-slate-400' },
-                                { label: 'Otros', val: aggregates.c_noimp_other, color: 'bg-slate-300' },
+                                { label: 'Tráfico', val: aggregates.c_noimp_traf, color: '#64748b' },
+                                { label: 'Clima', val: aggregates.c_noimp_weath, color: '#94a3b8' },
+                                { label: 'Otros', val: aggregates.c_noimp_other, color: '#cbd5e1' },
                             ]
                         }
                     },
@@ -496,238 +334,244 @@
                 };
             }, [incidents, complaints, selectedWeek, selectedPlant]);
 
-            const showNotification = (type, message) => {
-                setNotification({ type, message });
-                setTimeout(() => setNotification(null), 3000);
-            };
-
-            const handleAddIncident = (newInc) => setIncidents([...incidents, newInc]);
-            const handleAddComplaint = (newCmp) => setComplaints([...complaints, newCmp]);
+            // Handlers Firebase
+            const showNotification = (type, message) => { setNotification({ type, message }); setTimeout(() => setNotification(null), 3000); };
             
-            const handleDeleteIncident = (id) => {
-                setIncidents(incidents.filter(i => i.id !== id));
-                showNotification('success', 'Registro eliminado');
-            };
-
-            const handleDeleteComplaint = (id) => {
-                setComplaints(complaints.filter(c => c.id !== id));
-                showNotification('success', 'Queja eliminada');
-            };
-
-            const handleReset = () => {
-                if(window.confirm('¿Restaurar datos iniciales?')) {
-                    setIncidents(INITIAL_INCIDENTS);
-                    setComplaints(INITIAL_COMPLAINTS);
-                    showNotification('success', 'Datos restaurados');
+            const handleAddIncident = async (newInc) => {
+                try {
+                    await addDoc(collection(db, "incidents"), newInc);
+                    showNotification('success', 'Guardado en Firebase');
+                } catch (e) {
+                    console.error(e);
+                    showNotification('error', 'Error al guardar');
                 }
             };
+            
+            const handleAddComplaint = async (newCmp) => {
+                try {
+                    await addDoc(collection(db, "complaints"), newCmp);
+                    showNotification('success', 'Queja guardada');
+                } catch (e) { console.error(e); }
+            };
 
-            if (!dashboardData) return <div className="p-10 text-center">Cargando...</div>;
+            const handleDeleteIncident = async (id) => {
+                if(!window.confirm("¿Eliminar registro?")) return;
+                try { await deleteDoc(doc(db, "incidents", id)); showNotification('success', 'Eliminado'); } catch(e) { console.error(e); }
+            };
+
+            const handleDeleteComplaint = async (id) => {
+                if(!window.confirm("¿Eliminar queja?")) return;
+                try { await deleteDoc(doc(db, "complaints", id)); showNotification('success', 'Eliminado'); } catch(e) { console.error(e); }
+            };
+
+            // Función para cargar datos iniciales si la DB está vacía
+            const handleSeedData = async () => {
+                if(!window.confirm("¿Cargar datos de ejemplo a Firebase? Esto agregará registros.")) return;
+                const batch = writeBatch(db);
+                DEMO_INCIDENTS.forEach(inc => {
+                    const ref = doc(collection(db, "incidents"));
+                    batch.set(ref, inc);
+                });
+                DEMO_COMPLAINTS.forEach(cmp => {
+                    const ref = doc(collection(db, "complaints"));
+                    batch.set(ref, cmp);
+                });
+                await batch.commit();
+                showNotification('success', 'Datos demo cargados');
+            };
 
             return (
-                <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-10">
-                    <ToastNotification message={notification?.message} type={notification?.type} onClose={() => setNotification(null)} />
-
+                <div className="min-h-screen pb-10">
                     <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-rose-600 rounded-lg"><Truck className="w-6 h-6 text-white" /></div>
-                                    <div>
-                                        <h1 className="text-xl font-bold leading-tight">Control de Transporte</h1>
-                                        <p className="text-xs text-slate-400">Dashboard Operativo & Calidad</p>
-                                    </div>
+                        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-rose-600 rounded-lg"><Truck className="w-6 h-6" /></div>
+                                <div>
+                                    <h1 className="text-xl font-bold flex items-center gap-2">
+                                        Control de Transporte 
+                                        {isLoading && <span className="loader"></span>}
+                                    </h1>
+                                    <p className="text-xs text-slate-400">Conectado a Firebase</p>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <div className="relative">
-                                        <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <select className="pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-rose-500 outline-none appearance-none cursor-pointer hover:bg-slate-700 transition-colors" value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}>
-                                            {Object.values(WEEKS_DEF).map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="relative">
-                                        <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <select className="pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-rose-500 outline-none appearance-none cursor-pointer hover:bg-slate-700 transition-colors" value={selectedPlant} onChange={(e) => setSelectedPlant(e.target.value)}>
-                                            {PLANTS.map(p => <option key={p} value={p}>{p}</option>)}
-                                        </select>
-                                    </div>
-                                    <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-md shadow-rose-900/20">
-                                        <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Gestionar</span>
-                                    </button>
-                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <select className="bg-slate-800 border border-slate-700 rounded px-3 py-1 text-sm" value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}>
+                                    {Object.values(WEEKS_DEF).map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
+                                </select>
+                                <select className="bg-slate-800 border border-slate-700 rounded px-3 py-1 text-sm" value={selectedPlant} onChange={(e) => setSelectedPlant(e.target.value)}>
+                                    {PLANTS.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                                <button onClick={() => setIsModalOpen(true)} className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1 rounded text-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Gestionar</button>
                             </div>
                         </div>
                     </header>
+                    
+                    {notification && (
+                        <div className={`fixed top-20 right-4 p-4 rounded shadow-lg z-50 text-white flex gap-2 animate-in ${notification.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                            {notification.message}
+                        </div>
+                    )}
 
-                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+                    <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+                        {/* KPIs */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <KPICard title="Nivel de Servicio" value={`${dashboardData.stats.serviceLevel}%`} icon={Activity} color="emerald" trend={parseFloat(dashboardData.stats.serviceLevel) >= 98 ? "up" : "down"} />
-                            <KPICard title="Inicios Tardes" value={dashboardData.stats.lateStarts} icon={Clock} color="amber" subValue="Eventos" />
-                            <KPICard title="Fallas (Imp / No Imp)" value={`${dashboardData.stats.totalImp} / ${dashboardData.stats.totalNoImp}`} icon={AlertTriangle} color="rose" subValue={`Total: ${dashboardData.stats.totalImp + dashboardData.stats.totalNoImp}`} />
-                            <KPICard title="Percances / Siniestros" value={dashboardData.stats.accidents} icon={AlertOctagon} color="orange" subValue="Unidades" />
+                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between"><div><p className="text-slate-500 text-sm">Nivel Servicio</p><h3 className="text-2xl font-bold">{dashboardData.stats.serviceLevel}%</h3></div><div className="bg-emerald-100 p-3 rounded-lg text-emerald-600"><Activity /></div></div>
+                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between"><div><p className="text-slate-500 text-sm">Inicios Tarde</p><h3 className="text-2xl font-bold">{dashboardData.stats.lateStarts}</h3></div><div className="bg-amber-100 p-3 rounded-lg text-amber-600"><Clock /></div></div>
+                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between"><div><p className="text-slate-500 text-sm">Fallas (Imp/NoImp)</p><h3 className="text-2xl font-bold">{dashboardData.stats.totalImp} / {dashboardData.stats.totalNoImp}</h3></div><div className="bg-rose-100 p-3 rounded-lg text-rose-600"><AlertTriangle /></div></div>
+                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between"><div><p className="text-slate-500 text-sm">Percances</p><h3 className="text-2xl font-bold">{dashboardData.stats.accidents}</h3></div><div className="bg-orange-100 p-3 rounded-lg text-orange-600"><AlertOctagon /></div></div>
                         </div>
 
+                        {/* GRÁFICAS PRINCIPALES */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart className="w-5 h-5 text-slate-500" /> Tendencia Semanal de Fallas</h3>
-                                <div className="h-64 flex items-end justify-between gap-2 sm:gap-4">
-                                    {dashboardData.dailyStats.map((day, idx) => {
-                                        const maxVal = Math.max(...dashboardData.dailyStats.map(d => d.total), 5);
-                                        const heightPercent = Math.max((day.total / maxVal) * 100, 4);
-                                        return (
-                                            <div key={idx} className="flex flex-col items-center flex-1 group relative">
-                                                <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs p-2 rounded pointer-events-none z-10 w-24 text-center">
-                                                    <p>{day.date}</p><p>Imp: {day.imp}</p><p>No Imp: {day.noImp}</p>
-                                                </div>
-                                                <div className="w-full max-w-[40px] flex flex-col justify-end h-full rounded-t-md overflow-hidden bg-slate-100 relative">
-                                                    <div style={{ height: `${(day.noImp / day.total) * heightPercent}%` }} className="w-full bg-slate-400 transition-all duration-500" />
-                                                    <div style={{ height: `${(day.imp / day.total) * heightPercent}%` }} className="w-full bg-rose-500 transition-all duration-500" />
-                                                    {day.total === 0 && <div className="h-1 w-full bg-slate-200"></div>}
-                                                </div>
-                                                <span className="text-xs font-bold mt-2 text-slate-600">{day.dayName}</span>
-                                                <span className="text-[10px] text-slate-400">{day.date.slice(0,5)}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="flex justify-center gap-6 mt-6">
-                                    <div className="flex items-center gap-2 text-xs text-slate-600"><span className="w-3 h-3 bg-rose-500 rounded-full"></span> Imputables</div>
-                                    <div className="flex items-center gap-2 text-xs text-slate-600"><span className="w-3 h-3 bg-slate-400 rounded-full"></span> No Imputables</div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart2 className="w-5 h-5 text-slate-500" /> Tendencia Semanal de Fallas</h3>
+                                <SimpleBarChart data={dashboardData.dailyStats} dataKeys={['noImp', 'imp']} colors={['bg-slate-400', 'bg-rose-500']} height={200} />
+                                <div className="flex justify-center gap-6 mt-4">
+                                    <div className="flex items-center gap-2 text-xs text-slate-600"><span className="w-3 h-3 bg-rose-500 rounded-sm"></span> Imputables</div>
+                                    <div className="flex items-center gap-2 text-xs text-slate-600"><span className="w-3 h-3 bg-slate-400 rounded-sm"></span> No Imputables</div>
                                 </div>
                             </div>
-
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><PieChart className="w-5 h-5 text-slate-500" /> Desglose de Causas</h3>
-                                <div className="space-y-6">
-                                    <div>
-                                        <h4 className="text-xs font-bold uppercase text-slate-400 mb-3">Imputables</h4>
-                                        <div className="space-y-2">
-                                            {dashboardData.stats.causes.imp.map(cause => (
-                                                <div key={cause.label} className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-600">{cause.label}</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full ${cause.color}`} style={{ width: `${dashboardData.stats.totalImp > 0 ? (cause.val / dashboardData.stats.totalImp) * 100 : 0}%` }} /></div>
-                                                        <span className="font-bold w-4 text-right">{cause.val}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="border-t border-slate-100 pt-4">
-                                        <h4 className="text-xs font-bold uppercase text-slate-400 mb-3">No Imputables</h4>
-                                        <div className="space-y-2">
-                                            {dashboardData.stats.causes.noImp.map(cause => (
-                                                <div key={cause.label} className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-600">{cause.label}</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full ${cause.color}`} style={{ width: `${dashboardData.stats.totalNoImp > 0 ? (cause.val / dashboardData.stats.totalNoImp) * 100 : 0}%` }} /></div>
-                                                        <span className="font-bold w-4 text-right">{cause.val}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <SimpleDonutChart title="Imputables" total={dashboardData.stats.totalImp} data={dashboardData.stats.causes.imp} />
+                                    <SimpleDonutChart title="No Imputables" total={dashboardData.stats.totalNoImp} data={dashboardData.stats.causes.noImp} />
                                 </div>
                             </div>
                         </div>
 
+                        {/* GRÁFICAS ADICIONALES */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Clock className="w-4 h-4 text-amber-500" /> Inicios Tarde por Día</h3>
+                                <SimpleBarChart data={dashboardData.dailyStats} dataKeys={['lateStarts']} colors={['bg-amber-400']} height={120} minMax={3} />
+                            </div>
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><AlertOctagon className="w-4 h-4 text-orange-500" /> Percances por Día</h3>
+                                <SimpleBarChart data={dashboardData.dailyStats} dataKeys={['accidents']} colors={['bg-orange-400']} height={120} minMax={1} />
+                            </div>
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-500" /> Nivel Servicio (%)</h3>
+                                <div className="w-full flex items-end justify-between gap-2 h-[120px]">
+                                    {dashboardData.dailyStats.map((item, idx) => (
+                                        <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group">
+                                            <div className="w-full max-w-[20px] bg-slate-100 rounded-t relative h-full flex items-end pt-5">
+                                                <div className={`w-full rounded-t transition-all duration-500 ${item.serviceLevel >= 98 ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ height: `${item.serviceLevel > 90 ? (item.serviceLevel - 80) * 5 : item.serviceLevel}%` }}></div>
+                                                <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600 bg-white/80 px-1 rounded shadow-sm">{item.serviceLevel}%</span>
+                                            </div>
+                                            <div className="mt-2 text-center"><span className="text-[10px] font-bold text-slate-500 block">{item.dayName.charAt(0)}</span></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* TABLAS */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                                 <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><MessageSquare className="w-5 h-5 text-purple-500" /> Reporte de Quejas</h3>
-                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-bold">{dashboardData.complaintsList.length} Total</span>
+                                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><MessageSquare className="w-5 h-5 text-purple-500" /> Quejas</h3>
+                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-bold">{dashboardData.complaintsList.length}</span>
                                 </div>
-                                <div className="overflow-x-auto">
+                                <div className="overflow-x-auto max-h-60 overflow-y-auto">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="bg-slate-50 text-slate-500 font-medium"><tr><th className="p-3">Fecha</th><th className="p-3">Ruta</th><th className="p-3">Motivo</th><th className="p-3">Estado</th></tr></thead>
+                                        <thead className="bg-slate-50 text-slate-500 sticky top-0"><tr><th className="p-3">Fecha</th><th className="p-3">Ruta</th><th className="p-3">Motivo</th><th></th></tr></thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {dashboardData.complaintsList.length > 0 ? (
-                                                dashboardData.complaintsList.map(item => (
-                                                    <tr key={item.id} className="hover:bg-slate-50">
-                                                        <td className="p-3 whitespace-nowrap text-slate-500">{item.date.slice(0,5)}</td>
-                                                        <td className="p-3 font-medium text-slate-800">{item.route}</td>
-                                                        <td className="p-3"><span className="block text-slate-700">{item.issue}</span><span className="text-xs text-slate-400 truncate max-w-[150px] block">{item.detail}</span></td>
-                                                        <td className="p-3"><span className={`text-xs px-2 py-1 rounded-full border ${item.type === 'Conducta' ? 'bg-orange-50 text-orange-600 border-orange-100' : item.type === 'Unidad' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{item.type}</span></td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr><td colSpan="4" className="p-8 text-center text-slate-400 italic">No hay quejas registradas esta semana.</td></tr>
-                                            )}
+                                            {dashboardData.complaintsList.map(item => (
+                                                <tr key={item.id} className="hover:bg-slate-50">
+                                                    <td className="p-3 text-slate-500">{item.date.slice(0,5)}</td>
+                                                    <td className="p-3 font-medium">{item.route}</td>
+                                                    <td className="p-3">{item.issue}</td>
+                                                    <td className="p-3 text-right"><button onClick={()=>handleDeleteComplaint(item.id)} className="text-red-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></td>
+                                                </tr>
+                                            ))}
+                                            {dashboardData.complaintsList.length === 0 && <tr><td colSpan="4" className="p-4 text-center text-slate-400">Sin datos.</td></tr>}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
-                            
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                                <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><ListChecks className="w-5 h-5 text-rose-500" /> Bitácora Operativa</h3>
-                                </div>
-                                <div className="overflow-x-auto flex-1">
+                                <div className="p-4 border-b border-slate-200 bg-slate-50"><h3 className="font-bold text-slate-700 flex items-center gap-2"><History className="w-5 h-5 text-rose-500" /> Bitácora (Reciente)</h3></div>
+                                <div className="overflow-x-auto max-h-60 overflow-y-auto">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="bg-slate-50 text-slate-500 font-medium"><tr><th className="p-3">Fecha</th><th className="p-3">Planta</th><th className="p-3 text-center">Imp</th><th className="p-3 text-center">Tardes</th><th className="p-3 text-right">N.S.</th></tr></thead>
+                                        <thead className="bg-slate-50 text-slate-500 sticky top-0"><tr><th className="p-3">Fecha</th><th className="p-3">Planta</th><th className="p-3 text-center">Imp</th><th className="p-3 text-right">Acción</th></tr></thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {dashboardData.incidentsList.slice(0, 10).map(item => (
+                                            {dashboardData.incidentsList.slice().reverse().map(item => (
                                                 <tr key={item.id} className="hover:bg-slate-50">
                                                     <td className="p-3 text-slate-500">{item.date.slice(0,5)}</td>
-                                                    <td className="p-3 font-medium text-slate-800">{item.plant} <span className="text-xs text-slate-400 font-normal">({item.shift})</span></td>
-                                                    <td className="p-3 text-center">{item.imp > 0 ? <span className="text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded">{item.imp}</span> : <span className="text-slate-300">-</span>}</td>
-                                                    <td className="p-3 text-center">{item.lateStarts > 0 ? <span className="text-amber-600 font-bold">{item.lateStarts}</span> : <span className="text-slate-300">-</span>}</td>
-                                                    <td className="p-3 text-right font-mono"><span className={item.serviceLevel < 98 ? 'text-red-600' : 'text-emerald-600'}>{item.serviceLevel}%</span></td>
+                                                    <td className="p-3 font-medium">{item.plant} <span className="text-xs text-slate-400">({item.shift})</span></td>
+                                                    <td className="p-3 text-center">{item.imp > 0 ? <span className="text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded">{item.imp}</span> : '-'}</td>
+                                                    <td className="p-3 text-right"><button onClick={()=>handleDeleteIncident(item.id)} className="text-red-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></td>
                                                 </tr>
                                             ))}
-                                            {dashboardData.incidentsList.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-400 italic">No hay datos operativos para los filtros seleccionados.</td></tr>}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
                         </div>
 
-                        <DataManagementModal 
-                            isOpen={isModalOpen}
-                            onClose={() => setIsModalOpen(false)}
-                            incidents={incidents}
-                            complaints={complaints}
-                            onAddIncident={handleAddIncident}
-                            onAddComplaint={handleAddComplaint}
-                            onDeleteIncident={handleDeleteIncident}
-                            onDeleteComplaint={handleDeleteComplaint}
-                            onReset={handleReset}
-                            onShowNotification={showNotification}
-                        />
+                        {/* Modal para Agregar Datos Reales a Firebase */}
+                        {isModalOpen && (
+                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                                <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+                                    <div className="flex justify-between items-center mb-4 border-b pb-2">
+                                        <h2 className="text-lg font-bold">Gestión de Datos (Firebase)</h2>
+                                        <button onClick={() => setIsModalOpen(false)}><X className="w-5 h-5" /></button>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                        <button onClick={handleSeedData} className="w-full border-2 border-dashed border-slate-300 p-4 rounded-lg flex items-center justify-center gap-2 text-slate-500 hover:bg-slate-50 hover:border-rose-400 hover:text-rose-500 transition-all">
+                                            <CloudUpload className="w-5 h-5" /> Cargar Datos Demo a Firebase
+                                        </button>
+
+                                        <div className="border-t pt-4">
+                                            <h3 className="font-bold text-sm mb-2">Agregar Incidente Manual</h3>
+                                            <form onSubmit={(e) => {
+                                                e.preventDefault();
+                                                const formData = new FormData(e.target);
+                                                const newInc = {
+                                                    date: formData.get('date'),
+                                                    plant: formData.get('plant'),
+                                                    shift: formData.get('shift'),
+                                                    imp: parseInt(formData.get('imp')) || 0,
+                                                    noImp: parseInt(formData.get('noImp')) || 0,
+                                                    lateStarts: parseInt(formData.get('lateStarts')) || 0,
+                                                    serviceLevel: parseFloat(formData.get('serviceLevel')) || 100,
+                                                    accidents: parseInt(formData.get('accidents')) || 0,
+                                                    causeImpOperator: parseInt(formData.get('imp')) || 0, // Simplificado para demo
+                                                    causeImpAccident: 0, causeImpLogistics: 0, 
+                                                    causeNoImpTraffic: parseInt(formData.get('noImp')) || 0, 
+                                                    causeNoImpWeather: 0, causeNoImpOther: 0
+                                                };
+                                                handleAddIncident(newInc);
+                                                e.target.reset();
+                                            }} className="space-y-2">
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <select name="date" className="border p-2 rounded text-sm">{ALL_DATES.map(d=><option key={d} value={d}>{d}</option>)}</select>
+                                                    <select name="plant" className="border p-2 rounded text-sm">{PLANTS.map(p=><option key={p} value={p}>{p}</option>)}</select>
+                                                </div>
+                                                <div className="flex gap-4 text-sm"><label><input type="radio" name="shift" value="T1" defaultChecked /> T1</label><label><input type="radio" name="shift" value="T2" /> T2</label></div>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <input name="imp" type="number" placeholder="Imputables" className="border p-2 rounded text-sm" />
+                                                    <input name="noImp" type="number" placeholder="No Imp." className="border p-2 rounded text-sm" />
+                                                    <input name="lateStarts" type="number" placeholder="Tardes" className="border p-2 rounded text-sm" />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <input name="serviceLevel" type="number" step="0.1" placeholder="Nivel Servicio %" className="border p-2 rounded text-sm" defaultValue="100" />
+                                                    <input name="accidents" type="number" placeholder="Percances" className="border p-2 rounded text-sm" />
+                                                </div>
+                                                <button type="submit" className="w-full bg-rose-600 text-white py-2 rounded font-bold hover:bg-rose-700">Guardar Incidente</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </main>
                 </div>
             );
         };
 
-        // --- COMPONENTES HELPER ---
-        const KPICard = ({ title, value, subValue, icon: Icon, color, trend }) => {
-            const colorClasses = {
-                emerald: 'bg-emerald-100 text-emerald-600',
-                rose: 'bg-rose-100 text-rose-600',
-                amber: 'bg-amber-100 text-amber-600',
-                orange: 'bg-orange-100 text-orange-600',
-                blue: 'bg-blue-100 text-blue-600',
-            };
-
-            return (
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-                        <h4 className="text-2xl font-bold text-slate-800">{value}</h4>
-                        {subValue && <p className="text-xs text-slate-400 mt-1">{subValue}</p>}
-                    </div>
-                    <div className={`p-3 rounded-lg ${colorClasses[color] || 'bg-slate-100 text-slate-600'}`}>
-                        <Icon className="w-6 h-6" />
-                    </div>
-                </div>
-            );
-        };
-
-        const ListChecks = ({ className }) => (
-            <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
-        );
-
-        // --- RENDERIZADO (Montaje de React) ---
         const root = createRoot(document.getElementById('root'));
         root.render(<TransportationDashboard />);
     </script>
