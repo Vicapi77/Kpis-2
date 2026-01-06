@@ -4,36 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Transporte + Firebase</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
     <style>
-        body { background-color: #f8fafc; font-family: system-ui, sans-serif; }
+        body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #e11d48; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root">
+        <div style="height: 100vh; display: flex; align-items: center; justify-content: center; color: #64748b;">
+            Cargando Dashboard...
+        </div>
+    </div>
 
-    <script type="text/babel" data-type="module">
-        // 1. IMPORTACIONES UNIFICADAS (Todas desde esm.sh para evitar conflictos)
-        import React, { useState, useMemo, useEffect } from 'https://esm.sh/react@18.2.0';
-        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-        import { 
-            Activity, AlertTriangle, Truck, MessageSquare, Plus, X, 
-            History, Clock, AlertOctagon, BarChart2, PieChart, Trash2, CloudUpload 
-        } from 'https://esm.sh/lucide-react@0.292.0';
+    <script type="text/babel">
+        // 2. ACCESO A VARIABLES GLOBALES
+        const { useState, useMemo, useEffect } = React;
+        const { createRoot } = ReactDOM;
 
-        // Firebase Imports (Versión Modular compatible con navegador)
-        import { initializeApp } from "https://esm.sh/firebase@10.7.1/app";
-        import { getAnalytics } from "https://esm.sh/firebase@10.7.1/analytics";
-        import { 
-            getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, writeBatch 
-        } from "https://esm.sh/firebase@10.7.1/firestore";
+        // 3. ICONOS SVG MANUALES (Para no depender de librerías externas que fallan)
+        const Icons = {
+            Truck: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="13" x="1" y="5" rx="2" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+            Trash2: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>,
+            AlertTriangle: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>,
+            MessageSquare: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+            X: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+            CloudUpload: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>,
+            BarChart2: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
+            PieChart: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>,
+            Clock: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            AlertOctagon: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
+            Activity: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        };
 
-        // 2. CONFIGURACIÓN FIREBASE
+        // 4. CONFIGURACIÓN FIREBASE (COMPAT)
         const firebaseConfig = {
             apiKey: "AIzaSyB5OvYG9qGFrwQGCIIk2ps6R7tBDrhHqrY",
             authDomain: "kpis-stellantis.firebaseapp.com",
@@ -44,18 +63,17 @@
             measurementId: "G-WDXSRLJ6VB"
         };
 
-        // Inicialización segura
-        let app, db;
+        let db;
         try {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            console.log("Firebase conectado correctamente");
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            console.log("Firebase (Compat) conectado");
         } catch (error) {
-            console.error("Error conectando Firebase:", error);
-            document.body.innerHTML = `<h1 style="color:red; padding:20px">Error de conexión: ${error.message}</h1>`;
+            console.error("Error Firebase:", error);
+            alert("Error conectando a la base de datos");
         }
 
-        // --- DATOS DE EJEMPLO (SEED) ---
+        // --- DATOS SEMILLA (DEMO) ---
         const DEMO_INCIDENTS = [
             { date: '08/12/25', plant: 'Camiones', shift: 'T1', imp: 0, noImp: 13, lateStarts: 1, serviceLevel: 98.5, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 10, causeNoImpWeather: 0, causeNoImpOther: 3 },
             { date: '09/12/25', plant: 'Camiones', shift: 'T1', imp: 0, noImp: 3, lateStarts: 0, serviceLevel: 99.2, accidents: 0, causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: 3, causeNoImpWeather: 0, causeNoImpOther: 0 },
@@ -140,11 +158,18 @@
                 const startAngle = accumulatedPercent * 360;
                 const endAngle = (accumulatedPercent + percent) * 360;
                 accumulatedPercent += percent;
+                
+                // Si es un solo segmento 100%
+                if (percent === 1) {
+                    return { d: `M ${center} ${center} m -${radius}, 0 a ${radius},${radius} 0 1,0 ${radius*2},0 a ${radius},${radius} 0 1,0 -${radius*2},0`, color: item.color, label: item.label, val: item.val, percent: 100 };
+                }
+
                 const x1 = center + radius * Math.cos(Math.PI * startAngle / 180);
                 const y1 = center + radius * Math.sin(Math.PI * startAngle / 180);
                 const x2 = center + radius * Math.cos(Math.PI * endAngle / 180);
                 const y2 = center + radius * Math.sin(Math.PI * endAngle / 180);
                 const largeArc = percent > 0.5 ? 1 : 0;
+                
                 const d = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
                 return { d, color: item.color, label: item.label, val: item.val, percent: (percent*100).toFixed(0) };
             });
@@ -225,7 +250,7 @@
             useEffect(() => {
                 if (!db) return;
                 
-                const unsubInc = onSnapshot(collection(db, "incidents"), (snapshot) => {
+                const unsubscribeInc = db.collection("incidents").onSnapshot((snapshot) => {
                     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     setIncidents(data);
                     setIsLoading(false);
@@ -234,12 +259,12 @@
                     setIsLoading(false);
                 });
 
-                const unsubComp = onSnapshot(collection(db, "complaints"), (snapshot) => {
+                const unsubscribeComp = db.collection("complaints").onSnapshot((snapshot) => {
                     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     setComplaints(data);
                 });
 
-                return () => { unsubInc(); unsubComp(); };
+                return () => { unsubscribeInc(); unsubscribeComp(); };
             }, []);
 
             // Cálculos
@@ -281,9 +306,11 @@
 
                 const dailyStats = weekData.dates.map(date => {
                     const dayIncidents = filteredIncidents.filter(i => i.date === date);
-                    const [d, m, y] = date.split('/');
-                    const dateObj = new Date(`20${y}-${m}-${d}`);
-                    const dayName = dateObj.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase();
+                    // Parse date safely
+                    const parts = date.split('/');
+                    const dateObj = new Date(`20${parts[2]}-${parts[1]}-${parts[0]}`);
+                    // Fallback if invalid date
+                    const dayName = isNaN(dateObj) ? '---' : dateObj.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase();
                     
                     const dayImp = dayIncidents.reduce((s, i) => s + (i.imp || 0), 0);
                     const dayNoImp = dayIncidents.reduce((s, i) => s + (i.noImp || 0), 0);
@@ -336,26 +363,26 @@
             const showNotification = (type, message) => { setNotification({ type, message }); setTimeout(() => setNotification(null), 3000); };
             
             const handleAddIncident = async (newInc) => {
-                try { await addDoc(collection(db, "incidents"), newInc); showNotification('success', 'Guardado en Firebase'); } 
+                try { await db.collection("incidents").add(newInc); showNotification('success', 'Guardado en Firebase'); } 
                 catch (e) { console.error(e); showNotification('error', 'Error al guardar'); }
             };
 
             const handleDeleteIncident = async (id) => {
                 if(!window.confirm("¿Eliminar?")) return;
-                try { await deleteDoc(doc(db, "incidents", id)); showNotification('success', 'Eliminado'); } catch(e) { console.error(e); }
+                try { await db.collection("incidents").doc(id).delete(); showNotification('success', 'Eliminado'); } catch(e) { console.error(e); }
             };
 
             const handleDeleteComplaint = async (id) => {
                 if(!window.confirm("¿Eliminar?")) return;
-                try { await deleteDoc(doc(db, "complaints", id)); showNotification('success', 'Eliminado'); } catch(e) { console.error(e); }
+                try { await db.collection("complaints").doc(id).delete(); showNotification('success', 'Eliminado'); } catch(e) { console.error(e); }
             };
 
             const handleSeedData = async () => {
                 if(!window.confirm("¿Cargar datos de ejemplo?")) return;
                 try {
-                    const batch = writeBatch(db);
-                    DEMO_INCIDENTS.forEach(inc => { const ref = doc(collection(db, "incidents")); batch.set(ref, inc); });
-                    DEMO_COMPLAINTS.forEach(cmp => { const ref = doc(collection(db, "complaints")); batch.set(ref, cmp); });
+                    const batch = db.batch();
+                    DEMO_INCIDENTS.forEach(inc => { const ref = db.collection("incidents").doc(); batch.set(ref, inc); });
+                    DEMO_COMPLAINTS.forEach(cmp => { const ref = db.collection("complaints").doc(); batch.set(ref, cmp); });
                     await batch.commit();
                     showNotification('success', 'Datos cargados');
                 } catch(e) { console.error(e); showNotification('error', 'Error cargando datos'); }
@@ -366,7 +393,9 @@
                     <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
                         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-rose-600 rounded-lg"><Truck className="w-6 h-6" /></div>
+                                <div className="p-2 bg-rose-600 rounded-lg">
+                                    <Icons.Truck />
+                                </div>
                                 <div>
                                     <h1 className="text-xl font-bold flex items-center gap-2">Control Transporte {isLoading && <span className="loader"></span>}</h1>
                                     <p className="text-xs text-slate-400">Conectado a Firebase</p>
@@ -379,7 +408,7 @@
                                 <select className="bg-slate-800 border border-slate-700 rounded px-3 py-1 text-sm" value={selectedPlant} onChange={(e) => setSelectedPlant(e.target.value)}>
                                     {PLANTS.map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
-                                <button onClick={() => setIsModalOpen(true)} className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1 rounded text-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Gestionar</button>
+                                <button onClick={() => setIsModalOpen(true)} className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1 rounded text-sm flex items-center gap-2"><Icons.Plus /> Gestionar</button>
                             </div>
                         </div>
                     </header>
@@ -402,11 +431,11 @@
                         {/* GRÁFICAS */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                <h3 className="font-bold mb-6 flex gap-2"><BarChart2 className="w-5" /> Fallas Semanales</h3>
+                                <h3 className="font-bold mb-6 flex gap-2 items-center"><span className="text-slate-500"><Icons.BarChart2 /></span> Fallas Semanales</h3>
                                 <SimpleBarChart data={dashboardData.dailyStats} dataKeys={['noImp', 'imp']} colors={['bg-slate-400', 'bg-rose-500']} height={200} />
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                <h3 className="font-bold mb-4 flex gap-2"><PieChart className="w-5" /> Causas</h3>
+                                <h3 className="font-bold mb-4 flex gap-2 items-center"><span className="text-slate-500"><Icons.PieChart /></span> Causas</h3>
                                 <div className="grid grid-cols-2 gap-2">
                                     <SimpleDonutChart title="Imputables" total={dashboardData.stats.totalImp} data={dashboardData.stats.causes.imp} />
                                     <SimpleDonutChart title="No Imputables" total={dashboardData.stats.totalNoImp} data={dashboardData.stats.causes.noImp} />
@@ -417,15 +446,15 @@
                         {/* GRAFICAS ADICIONALES */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-white p-6 rounded-xl border shadow-sm">
-                                <h3 className="font-bold mb-4 flex gap-2"><Clock className="w-4 text-amber-500"/> Inicios Tarde</h3>
+                                <h3 className="font-bold mb-4 flex gap-2 items-center"><span className="text-amber-500"><Icons.Clock /></span> Inicios Tarde</h3>
                                 <SimpleBarChart data={dashboardData.dailyStats} dataKeys={['lateStarts']} colors={['bg-amber-400']} height={120} minMax={3} />
                             </div>
                             <div className="bg-white p-6 rounded-xl border shadow-sm">
-                                <h3 className="font-bold mb-4 flex gap-2"><AlertOctagon className="w-4 text-orange-500"/> Percances</h3>
+                                <h3 className="font-bold mb-4 flex gap-2 items-center"><span className="text-orange-500"><Icons.AlertOctagon /></span> Percances</h3>
                                 <SimpleBarChart data={dashboardData.dailyStats} dataKeys={['accidents']} colors={['bg-orange-400']} height={120} minMax={1} />
                             </div>
                             <div className="bg-white p-6 rounded-xl border shadow-sm">
-                                <h3 className="font-bold mb-4 flex gap-2"><Activity className="w-4 text-emerald-500"/> Nivel Servicio</h3>
+                                <h3 className="font-bold mb-4 flex gap-2 items-center"><span className="text-emerald-500"><Icons.Activity /></span> Nivel Servicio</h3>
                                 <div className="w-full flex items-end justify-between gap-2 h-[120px]">
                                     {dashboardData.dailyStats.map((item, idx) => (
                                         <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group">
@@ -443,7 +472,7 @@
                         {/* TABLAS */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div className="p-4 bg-slate-50 font-bold border-b flex justify-between"><span className="flex gap-2"><MessageSquare className="w-5 text-purple-500"/> Quejas</span> <span className="text-xs bg-purple-100 px-2 py-1 rounded-full">{dashboardData.complaintsList.length}</span></div>
+                                <div className="p-4 bg-slate-50 font-bold border-b flex justify-between"><span className="flex gap-2 items-center"><span className="text-purple-500"><Icons.MessageSquare /></span> Quejas</span> <span className="text-xs bg-purple-100 px-2 py-1 rounded-full">{dashboardData.complaintsList.length}</span></div>
                                 <div className="max-h-60 overflow-y-auto">
                                     <table className="w-full text-sm text-left">
                                         <thead className="sticky top-0 bg-slate-50 text-slate-500"><tr><th className="p-3">Fecha</th><th className="p-3">Ruta</th><th className="p-3">Motivo</th><th></th></tr></thead>
@@ -453,80 +482,268 @@
                                                     <td className="p-3 text-slate-500">{c.date.slice(0,5)}</td>
                                                     <td className="p-3">{c.route}</td>
                                                     <td className="p-3">{c.issue}</td>
-                                                    <td className="p-3 text-right"><button onClick={()=>handleDeleteComplaint(c.id)} className="text-red-300 hover:text-red-500"><Trash2 className="w-4"/></button></td>
+                                                    <td className="p-3 text-right"><button onClick={()=>handleDeleteComplaint(c.id)} className="text-red-300 hover:text-red-500"><Icons.Trash2 /></button></td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
+                                    {dashboardData.complaintsList.length === 0 && (
+                                        <div className="p-8 text-center text-slate-400 flex flex-col items-center">
+                                            <div className="opacity-50 mb-2"><Icons.MessageSquare /></div>
+                                            <p>No hay quejas en esta semana y planta.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div className="p-4 bg-slate-50 font-bold border-b flex gap-2"><History className="w-5 text-rose-500"/> Bitácora</div>
+                                <div className="p-4 bg-slate-50 font-bold border-b flex justify-between items-center">
+                                    <span className="flex gap-2 items-center"><span className="text-rose-500"><Icons.AlertTriangle /></span> Reportes de Turno</span> 
+                                    <span className="text-xs bg-rose-100 text-rose-700 px-2 py-1 rounded-full">{dashboardData.incidentsList.length}</span>
+                                </div>
                                 <div className="max-h-60 overflow-y-auto">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="sticky top-0 bg-slate-50 text-slate-500"><tr><th className="p-3">Fecha</th><th className="p-3">Planta</th><th className="p-3 text-center">Imp</th><th></th></tr></thead>
+                                        <thead className="sticky top-0 bg-slate-50 text-slate-500 shadow-sm z-10">
+                                            <tr>
+                                                <th className="p-3">Fecha</th>
+                                                <th className="p-3">Planta/Turno</th>
+                                                <th className="p-3 text-center">Fallas (Imp/No)</th>
+                                                <th className="p-3 text-center">N.S.</th>
+                                                <th className="p-3"></th>
+                                            </tr>
+                                        </thead>
                                         <tbody className="divide-y">
-                                            {dashboardData.incidentsList.slice().reverse().map(i => (
-                                                <tr key={i.id}>
-                                                    <td className="p-3 text-slate-500">{i.date.slice(0,5)}</td>
-                                                    <td className="p-3">{i.plant} <span className="text-xs text-slate-400">({i.shift})</span></td>
-                                                    <td className="p-3 text-center">{i.imp > 0 ? <span className="text-rose-600 bg-rose-50 px-2 rounded font-bold">{i.imp}</span> : '-'}</td>
-                                                    <td className="p-3 text-right"><button onClick={()=>handleDeleteIncident(i.id)} className="text-red-300 hover:text-red-500"><Trash2 className="w-4"/></button></td>
+                                            {dashboardData.incidentsList.map(inc => (
+                                                <tr key={inc.id} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 text-slate-600 font-medium">{inc.date.slice(0,5)}</td>
+                                                    <td className="p-3">
+                                                        <div className="font-bold text-slate-700">{inc.plant}</div>
+                                                        <div className="text-xs text-slate-400">{inc.shift}</div>
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${inc.imp > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {inc.imp}
+                                                        </span>
+                                                        <span className="mx-1 text-slate-300">/</span>
+                                                        <span className="text-slate-600 font-bold">{inc.noImp}</span>
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <span className={`font-bold ${inc.serviceLevel >= 98 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                            {inc.serviceLevel}%
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <button onClick={()=>handleDeleteIncident(inc.id)} className="text-slate-300 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-all">
+                                                            <Icons.Trash2 />
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             ))}
+                                            {dashboardData.incidentsList.length === 0 && (
+                                                 <tr>
+                                                    <td colSpan="5" className="p-8 text-center text-slate-400">
+                                                        <div className="flex flex-col items-center">
+                                                            <div className="opacity-50 mb-2"><Icons.Truck /></div>
+                                                            <p>No hay reportes de turno registrados.</p>
+                                                        </div>
+                                                    </td>
+                                                 </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
                         </div>
+                    </main>
 
-                        {/* MODAL */}
-                        {isModalOpen && (
-                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                                <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-                                    <div className="flex justify-between items-center mb-4 border-b pb-2">
-                                        <h2 className="font-bold">Gestión</h2>
-                                        <button onClick={() => setIsModalOpen(false)}><X className="w-5" /></button>
+                    {/* MODAL DE GESTIÓN (AGREGAR DATOS) */}
+                    {isModalOpen && (
+                        <ModalForm 
+                            close={() => setIsModalOpen(false)} 
+                            plants={PLANTS.filter(p => p !== 'Todas')}
+                            onSaveIncident={(data) => {
+                                const [y, m, d] = data.date.split('-');
+                                const formattedDate = `${d}/${m}/${y.slice(-2)}`;
+                                
+                                const imp = (parseInt(data.causeImpOperator)||0) + (parseInt(data.causeImpAccident)||0) + (parseInt(data.causeImpLogistics)||0);
+                                const noImp = (parseInt(data.causeNoImpTraffic)||0) + (parseInt(data.causeNoImpWeather)||0) + (parseInt(data.causeNoImpOther)||0);
+                                
+                                handleAddIncident({
+                                    ...data,
+                                    date: formattedDate,
+                                    imp,
+                                    noImp,
+                                    lateStarts: parseInt(data.lateStarts) || 0,
+                                    serviceLevel: parseFloat(data.serviceLevel) || 100,
+                                    accidents: parseInt(data.accidents) || 0,
+                                    causeImpOperator: parseInt(data.causeImpOperator) || 0,
+                                    causeImpAccident: parseInt(data.causeImpAccident) || 0,
+                                    causeImpLogistics: parseInt(data.causeImpLogistics) || 0,
+                                    causeNoImpTraffic: parseInt(data.causeNoImpTraffic) || 0,
+                                    causeNoImpWeather: parseInt(data.causeNoImpWeather) || 0,
+                                    causeNoImpOther: parseInt(data.causeNoImpOther) || 0,
+                                });
+                                setIsModalOpen(false);
+                            }}
+                            onSaveComplaint={(data) => {
+                                const [y, m, d] = data.date.split('-');
+                                const formattedDate = `${d}/${m}/${y.slice(-2)}`;
+                                db.collection("complaints").add({ ...data, date: formattedDate });
+                                showNotification('success', 'Queja agregada');
+                                setIsModalOpen(false);
+                            }}
+                            onSeed={handleSeedData}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        // --- COMPONENTE MODAL INTERNO ---
+        const ModalForm = ({ close, plants, onSaveIncident, onSaveComplaint, onSeed }) => {
+            const [tab, setTab] = useState('incident'); 
+            const [formData, setFormData] = useState({
+                date: new Date().toISOString().split('T')[0],
+                plant: 'Camiones',
+                shift: 'T1',
+                serviceLevel: 99.0,
+                lateStarts: 0,
+                accidents: 0,
+                causeImpOperator: 0, causeImpAccident: 0, causeImpLogistics: 0,
+                causeNoImpTraffic: 0, causeNoImpWeather: 0, causeNoImpOther: 0,
+                route: '', issue: 'Retraso', detail: '', action: '', source: 'Laborales', type: 'Servicio'
+            });
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (tab === 'incident') onSaveIncident(formData);
+                else onSaveComplaint(formData);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="bg-slate-900 p-4 flex justify-between items-center text-white">
+                            <h2 className="font-bold flex items-center gap-2">
+                                <Icons.Plus /> Agregar Registro
+                            </h2>
+                            <button onClick={close} className="hover:bg-slate-700 p-1 rounded"><Icons.X /></button>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex border-b bg-slate-50">
+                            <button onClick={() => setTab('incident')} className={`flex-1 py-3 text-sm font-bold transition-colors ${tab === 'incident' ? 'border-b-2 border-rose-600 text-rose-600 bg-white' : 'text-slate-500 hover:bg-slate-100'}`}>Reporte Turno</button>
+                            <button onClick={() => setTab('complaint')} className={`flex-1 py-3 text-sm font-bold transition-colors ${tab === 'complaint' ? 'border-b-2 border-rose-600 text-rose-600 bg-white' : 'text-slate-500 hover:bg-slate-100'}`}>Queja / Servicio</button>
+                        </div>
+
+                        {/* Form Body */}
+                        <div className="p-6 overflow-y-auto">
+                            <form id="dataForm" onSubmit={handleSubmit} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Fecha</label>
+                                        <input type="date" name="date" required value={formData.date} onChange={handleChange} className="w-full border rounded p-2 text-sm"/>
                                     </div>
-                                    <div className="space-y-4">
-                                        <button onClick={handleSeedData} className="w-full border-2 border-dashed border-slate-300 p-4 rounded-lg flex items-center justify-center gap-2 text-slate-500 hover:border-rose-400 hover:text-rose-500">
-                                            <CloudUpload className="w-5" /> Cargar Datos Demo a Firebase
-                                        </button>
-                                        <form onSubmit={(e) => {
-                                            e.preventDefault();
-                                            const fd = new FormData(e.target);
-                                            const newInc = {
-                                                date: fd.get('date'), plant: fd.get('plant'), shift: fd.get('shift'),
-                                                imp: parseInt(fd.get('imp')) || 0, noImp: parseInt(fd.get('noImp')) || 0,
-                                                lateStarts: parseInt(fd.get('lateStarts')) || 0, serviceLevel: parseFloat(fd.get('serviceLevel')) || 100,
-                                                accidents: parseInt(fd.get('accidents')) || 0, causeImpOperator: parseInt(fd.get('imp')) || 0,
-                                                causeImpAccident: 0, causeImpLogistics: 0, causeNoImpTraffic: parseInt(fd.get('noImp')) || 0, causeNoImpWeather: 0, causeNoImpOther: 0
-                                            };
-                                            handleAddIncident(newInc);
-                                            e.target.reset();
-                                        }} className="space-y-3 border-t pt-4">
-                                            <h3 className="font-bold text-sm">Agregar Incidente</h3>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <select name="date" className="border p-2 rounded text-sm">{ALL_DATES.map(d=><option key={d} value={d}>{d}</option>)}</select>
-                                                <select name="plant" className="border p-2 rounded text-sm">{PLANTS.map(p=><option key={p} value={p}>{p}</option>)}</select>
-                                            </div>
-                                            <div className="flex gap-4 text-sm"><label><input type="radio" name="shift" value="T1" defaultChecked /> T1</label><label><input type="radio" name="shift" value="T2" /> T2</label></div>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                <input name="imp" type="number" placeholder="Imputables" className="border p-2 rounded text-sm" />
-                                                <input name="noImp" type="number" placeholder="No Imp." className="border p-2 rounded text-sm" />
-                                                <input name="lateStarts" type="number" placeholder="Tardes" className="border p-2 rounded text-sm" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <input name="serviceLevel" type="number" step="0.1" placeholder="Nivel Servicio %" className="border p-2 rounded text-sm" defaultValue="100" />
-                                                <input name="accidents" type="number" placeholder="Percances" className="border p-2 rounded text-sm" />
-                                            </div>
-                                            <button type="submit" className="w-full bg-rose-600 text-white py-2 rounded font-bold hover:bg-rose-700">Guardar</button>
-                                        </form>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Planta</label>
+                                        <select name="plant" value={formData.plant} onChange={handleChange} className="w-full border rounded p-2 text-sm">
+                                            {plants.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
                                     </div>
                                 </div>
+
+                                {tab === 'incident' ? (
+                                    <>
+                                        <div className="grid grid-cols-3 gap-4 bg-slate-50 p-3 rounded-lg border">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Turno</label>
+                                                <select name="shift" value={formData.shift} onChange={handleChange} className="w-full border rounded p-1 text-sm bg-white">
+                                                    <option>T1</option><option>T2</option><option>T3</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Nivel Servicio %</label>
+                                                <input type="number" step="0.1" name="serviceLevel" value={formData.serviceLevel} onChange={handleChange} className="w-full border rounded p-1 text-sm"/>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Inicios Tarde</label>
+                                                <input type="number" name="lateStarts" value={formData.lateStarts} onChange={handleChange} className="w-full border rounded p-1 text-sm"/>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="border border-rose-100 rounded-lg p-3 bg-rose-50/50">
+                                                <h4 className="text-xs font-bold text-rose-600 uppercase mb-2 border-b border-rose-200 pb-1">Imputables (Fallas)</h4>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center"><label className="text-xs">Operador</label><input type="number" name="causeImpOperator" value={formData.causeImpOperator} onChange={handleChange} className="w-12 border rounded text-center text-sm"/></div>
+                                                    <div className="flex justify-between items-center"><label className="text-xs">Siniestro</label><input type="number" name="causeImpAccident" value={formData.causeImpAccident} onChange={handleChange} className="w-12 border rounded text-center text-sm"/></div>
+                                                    <div className="flex justify-between items-center"><label className="text-xs">Logística</label><input type="number" name="causeImpLogistics" value={formData.causeImpLogistics} onChange={handleChange} className="w-12 border rounded text-center text-sm"/></div>
+                                                </div>
+                                            </div>
+                                            <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 border-b border-slate-200 pb-1">No Imputables</h4>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center"><label className="text-xs">Tráfico</label><input type="number" name="causeNoImpTraffic" value={formData.causeNoImpTraffic} onChange={handleChange} className="w-12 border rounded text-center text-sm"/></div>
+                                                    <div className="flex justify-between items-center"><label className="text-xs">Clima</label><input type="number" name="causeNoImpWeather" value={formData.causeNoImpWeather} onChange={handleChange} className="w-12 border rounded text-center text-sm"/></div>
+                                                    <div className="flex justify-between items-center"><label className="text-xs">Otros</label><input type="number" name="causeNoImpOther" value={formData.causeNoImpOther} onChange={handleChange} className="w-12 border rounded text-center text-sm"/></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Percances / Accidentes (Cantidad)</label>
+                                            <input type="number" name="accidents" value={formData.accidents} onChange={handleChange} className="w-full border rounded p-2 text-sm"/>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Ruta</label>
+                                            <input type="text" name="route" placeholder="Ej. Valle Verde" value={formData.route} onChange={handleChange} className="w-full border rounded p-2 text-sm"/>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Motivo</label>
+                                                <select name="issue" value={formData.issue} onChange={handleChange} className="w-full border rounded p-2 text-sm">
+                                                    <option>Actitud</option><option>Desvío de ruta</option><option>Inicios tardes</option><option>Falla mecánica</option><option>Limpieza</option><option>Manejo peligroso</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Fuente</label>
+                                                <select name="source" value={formData.source} onChange={handleChange} className="w-full border rounded p-2 text-sm">
+                                                    <option>Laborales</option><option>Sindicato</option><option>Seguridad</option><option>Directo</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Detalle</label>
+                                            <textarea name="detail" rows="2" value={formData.detail} onChange={handleChange} className="w-full border rounded p-2 text-sm"></textarea>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Acción Correctiva</label>
+                                            <textarea name="action" rows="2" value={formData.action} onChange={handleChange} className="w-full border rounded p-2 text-sm"></textarea>
+                                        </div>
+                                    </>
+                                )}
+                            </form>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t bg-slate-50 flex justify-between items-center">
+                            <button type="button" onClick={() => { if(confirm('¿Cargar datos de ejemplo?')) { onSeed(); close(); }}} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                                <Icons.CloudUpload /> Cargar Demo
+                            </button>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={close} className="px-4 py-2 rounded text-sm text-slate-600 hover:bg-slate-200">Cancelar</button>
+                                <button type="submit" form="dataForm" className="px-4 py-2 rounded text-sm bg-rose-600 text-white hover:bg-rose-700 shadow-lg shadow-rose-200">Guardar</button>
                             </div>
-                        )}
-                    </main>
+                        </div>
+                    </div>
                 </div>
             );
         };
